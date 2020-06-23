@@ -28,19 +28,23 @@ def process_song_data(spark, input_data, output_data):
     # read song data file
     df = spark.read.json(song_data)
     df.printSchema()
-    return
 
-#     # extract columns to create songs table
-#     songs_table = 
+    # extract columns to create songs table
+    songs_table = df.select('song_id','title', 'artist_id', 'year', 'duration')
+    songs_table.printSchema()
     
 #     # write songs table to parquet files partitioned by year and artist
-#     songs_table
+    songs_table.write.partitionBy('year','artist_id').parquet('data/stg/songs')
 
 #     # extract columns to create artists table
-#     artists_table = 
+    artists_table = df.select('artist_id', df.artist_name.alias('name'),
+                              df.artist_location.alias('location'),
+                              df.artist_latitude.alias('latitude'),
+                              df.artist_longitude.alias('longitude'))
+    artists_table.printSchema()
     
 #     # write artists table to parquet files
-#     artists_table
+    artists_table.write.parquet('data/stg/artists')
 
 
 def process_log_data(spark, input_data, output_data):
@@ -57,10 +61,10 @@ def process_log_data(spark, input_data, output_data):
 #     df = 
 
 #     # extract columns for users table    
-#     artists_table = 
+#     users_table = 
     
 #     # write users table to parquet files
-#     artists_table
+#     users_table
 
 #     # create timestamp column from original timestamp column
 #     get_timestamp = udf()
@@ -89,7 +93,7 @@ def process_log_data(spark, input_data, output_data):
 def main():
     spark = create_spark_session()
 #     input_data = "s3a://udacity-dend/"
-    input_data = 'data/'
+    input_data = 'data/in/'
     output_data = ""
     
     process_song_data(spark, input_data, output_data)    
