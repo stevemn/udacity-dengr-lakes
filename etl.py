@@ -2,6 +2,7 @@ import configparser
 from datetime import datetime
 import os
 from pyspark.sql import SparkSession
+from pyspark.sql.types import TimestampType
 from pyspark.sql.functions import udf, col
 from pyspark.sql.functions import year, month, dayofmonth, hour, weekofyear, date_format
 
@@ -70,19 +71,29 @@ def process_log_data(spark, input_data, output_data):
     # write users table to parquet files
     users_table.write.parquet('data/stg/users')
 
-#     # create timestamp column from original timestamp column
-#     get_timestamp = udf()
-#     df = 
+    # create timestamp column from original timestamp column
+    get_timestamp = udf(
+        lambda x: datetime.fromtimestamp(x/1000).strftime('%Y-%m-%d %H:%M:%S'))
+    df = df.withColumn('timestamp', get_timestamp(df.ts))
     
-#     # create datetime column from original timestamp column
-#     get_datetime = udf()
-#     df = 
+    # create datetime column from original timestamp column
+    get_datetime = udf(
+        lambda x: datetime.fromtimestamp(x/1000).strftime('%Y-%m-%d'))
+    df = df.withColumn('datetime', get_datetime(df.ts))
     
-#     # extract columns to create time table
-#     time_table = 
+    # extract columns to create time table
+    time_table = df.select(df.timestamp.alias('start_time').cast(TimestampType()),
+                           hour(df.timestamp).alias('hour'),
+                           dayofmonth(df.timestamp).alias('day'),
+                           weekofyear(df.timestamp).alias('week'),
+                           month(df.timestamp).alias('month'),
+                           year(df.timestamp).alias('year'),
+                           date_format(df.timestamp, 'EEEE').alias('weekday')
+                          ).dropDuplicates()
+    time_table.printSchema()
     
-#     # write time table to parquet files partitioned by year and month
-#     time_table
+    # write time table to parquet files partitioned by year and month
+    time_table.write.parquet('data/stg/time')
 
 #     # read in song data to use for songplays table
 #     song_df = 
