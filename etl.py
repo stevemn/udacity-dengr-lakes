@@ -18,6 +18,9 @@ def create_spark_session():
     spark = SparkSession \
         .builder \
         .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:2.7.0") \
+        .config("spark.hadoop.fs.s3a.access.key", os.environ['AWS_ACCESS_KEY_ID']) \
+        .config("spark.hadoop.fs.s3a.secret.key", os.environ['AWS_SECRET_ACCESS_KEY']) \
+        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .getOrCreate()
     return spark
 
@@ -28,24 +31,22 @@ def process_song_data(spark, input_data, output_data):
     
     # read song data file
     df = spark.read.json(song_data)
-    df.printSchema()
 
     # extract columns to create songs table
     songs_table = df.select('song_id','title', 'artist_id', 'year', 'duration')
-    songs_table.printSchema()
     
-#     # write songs table to parquet files partitioned by year and artist
-    songs_table.write.partitionBy('year','artist_id').parquet('data/stg/songs')
+    # write songs table to parquet files partitioned by year and artist
+    songs_table.write.partitionBy(
+        'year','artist_id').parquet(output_data + 'songs', mode='overwrite')
 
-#     # extract columns to create artists table
+    # extract columns to create artists table
     artists_table = df.select('artist_id', df.artist_name.alias('name'),
                               df.artist_location.alias('location'),
                               df.artist_latitude.alias('latitude'),
                               df.artist_longitude.alias('longitude'))
-    artists_table.printSchema()
     
 #     # write artists table to parquet files
-    artists_table.write.parquet('data/stg/artists')
+    artists_table.write.parquet(output_data + 'artists', mode='overwrite')
 
 
 def process_log_data(spark, input_data, output_data):
@@ -55,7 +56,6 @@ def process_log_data(spark, input_data, output_data):
 
     # read log data file
     df = spark.read.json(log_data)
-    df.printSchema()
     
     # filter by actions for song plays
     df = df.filter(df.page=='NextSong')
@@ -66,10 +66,9 @@ def process_log_data(spark, input_data, output_data):
                             df.firstName.alias('first_name'),
                             df.lastName.alias('last_name'),
                             'gender','level').distinct()
-    users_table.printSchema()
     
     # write users table to parquet files
-    users_table.write.parquet('data/stg/users')
+    users_table.write.parquet(output_data + 'users', mode='overwrite')
 
     # create timestamp column from original timestamp column
     get_timestamp = udf(
@@ -90,10 +89,10 @@ def process_log_data(spark, input_data, output_data):
                            year(df.timestamp).alias('year'),
                            date_format(df.timestamp, 'EEEE').alias('weekday')
                           ).dropDuplicates()
-    time_table.printSchema()
     
     # write time table to parquet files partitioned by year and month
-    time_table.write.parquet('data/stg/time')
+    time_table.write.partitionBy(
+        'year','month').parquet(output_data + 'time', mode='overwrite')
 
     # read in song data to use for songplays table
     song_df = spark.read.json(input_data + 'song_data/*/*/*/*.json')
@@ -111,21 +110,21 @@ def process_log_data(spark, input_data, output_data):
             df.userAgent.alias('user_agent'),
             date_format(df.timestamp, 'y').alias('year'),
             date_format(df.timestamp, 'M').alias('month'))
-    songplays_table.printSchema()
 
     # write songplays table to parquet files partitioned by year and month
-    songplays_table.write.partitionBy('year','month').parquet('data/stg/songplays')
+    songplays_table.write.partitionBy(
+        'year','month').parquet(output_data + 'songplays', mode='overwrite')
 
 
 def main():
     spark = create_spark_session()
-#     input_data = "s3a://udacity-dend/"
-    input_data = 'data/in/'
-    output_data = ""
+    input_data = "s3a://udacity-dend/"
+    output_data = "s3a://dengr-data-lakes/"
     
     process_song_data(spark, input_data, output_data)    
     process_log_data(spark, input_data, output_data)
 
+    spark.stop()
 
 if __name__ == "__main__":
     main()

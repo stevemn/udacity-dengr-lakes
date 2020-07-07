@@ -1,3 +1,4 @@
 dl.cfg
 data/
 .ipynb_checkpoints/
+spark-cluster.pem
