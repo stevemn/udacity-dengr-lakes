@@ -26,6 +26,17 @@ def create_spark_session():
 
 
 def process_song_data(spark, input_data, output_data):
+    """ Reads in Sparkify song data, transforms,and saves to parquet files.
+        Song data is converted artist and song data.
+
+    Arguments:
+        spark {object}: a configured SparkSession object
+        input_data {str}: path to input data for reading
+        output_data {str}: path to write output data
+
+    Returns:
+        None
+    """
     # get filepath to song data file
     song_data = input_data + 'song_data/*/*/*/*.json'
     
@@ -33,7 +44,8 @@ def process_song_data(spark, input_data, output_data):
     df = spark.read.json(song_data)
 
     # extract columns to create songs table
-    songs_table = df.select('song_id','title', 'artist_id', 'year', 'duration')
+    songs_table = df.select('song_id','title', 'artist_id', 'year',
+                            'duration').distinct()
     
     # write songs table to parquet files partitioned by year and artist
     songs_table.write.partitionBy(
@@ -43,16 +55,27 @@ def process_song_data(spark, input_data, output_data):
     artists_table = df.select('artist_id', df.artist_name.alias('name'),
                               df.artist_location.alias('location'),
                               df.artist_latitude.alias('latitude'),
-                              df.artist_longitude.alias('longitude'))
+                              df.artist_longitude.alias('longitude')
+                             ).distinct()
     
-#     # write artists table to parquet files
+    # write artists table to parquet files
     artists_table.write.parquet(output_data + 'artists', mode='overwrite')
 
 
 def process_log_data(spark, input_data, output_data):
+    """ Reads in Sparkify log data, transforms,and saves to parquet files.
+        Log data is converted to user, time, and songplay data.
+
+    Arguments:
+        spark {object}: a configured SparkSession object
+        input_data {str}: path to input data for reading
+        output_data {str}: path to write output data
+
+    Returns:
+        None
+    """
     # get filepath to log data file
-#     log_data = input_data + 'log_data/*/*/*.json'
-    log_data = input_data + 'log_data/*.json'
+    log_data = input_data + 'log_data/*/*/*.json'
 
     # read log data file
     df = spark.read.json(log_data)
